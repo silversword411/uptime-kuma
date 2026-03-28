@@ -2,7 +2,7 @@
     <!-- Group List -->
     <Draggable v-model="$root.publicGroupList" :disabled="!editMode" item-key="id" :animation="100">
         <template #item="group">
-            <div class="mb-5" data-testid="group">
+            <div :class="compactMode ? 'mb-2' : 'mb-5'" data-testid="group">
                 <!-- Group Title -->
                 <h2 class="group-title">
                     <font-awesome-icon v-if="editMode && showGroupDrag" icon="arrows-alt-v" class="action drag me-3" />
@@ -30,7 +30,7 @@
                 </h2>
 
                 <transition name="slide-fade-up">
-                    <div v-if="!isGroupCollapsed(group.element)" class="shadow-box monitor-list mt-4 position-relative">
+                    <div v-if="!isGroupCollapsed(group.element)" :class="['shadow-box monitor-list position-relative', compactMode ? 'mt-2' : 'mt-4']">
                         <div v-if="group.element.monitorList.length === 0" class="text-center no-monitor-msg">
                             {{ $t("No Monitors") }}
                         </div>
@@ -39,14 +39,16 @@
                         <!-- animation is not working, no idea why -->
                         <Draggable
                             v-model="group.element.monitorList"
-                            class="monitor-list"
+                            :class="['monitor-list', { 'compact-monitor-list': compactMode }]"
                             group="same-group"
                             :disabled="!editMode"
                             :animation="100"
                             item-key="id"
                         >
                             <template #item="monitor">
-                                <div class="item" data-testid="monitor">
+                                <div :class="compactMode ? 'compact-item' : 'item'" data-testid="monitor">
+                                <!-- Normal layout -->
+                                <div v-if="!compactMode">
                                     <div class="row">
                                         <div class="col-9 col-xl-6 small-padding">
                                             <div class="info">
@@ -120,6 +122,31 @@
                                         </div>
                                     </div>
                                 </div>
+
+                                <!-- Compact layout -->
+                                <div v-else>
+                                    <div class="compact-header">
+                                        <span
+                                            class="compact-status-dot"
+                                            :class="compactStatusClass(monitor.element.id)"
+                                        ></span>
+                                        <a
+                                            v-if="showLink(monitor)"
+                                            :href="monitor.element.url"
+                                            class="compact-name"
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            data-testid="monitor-name"
+                                        >{{ monitor.element.name }}</a>
+                                        <span v-else class="compact-name" data-testid="monitor-name">
+                                            {{ monitor.element.name }}
+                                        </span>
+                                    </div>
+                                    <div :key="$root.userHeartbeatBar" class="compact-bar">
+                                        <HeartbeatBar size="small" :monitor-id="monitor.element.id" />
+                                    </div>
+                                </div>
+                                </div>
                             </template>
                         </Draggable>
                     </div>
@@ -164,6 +191,11 @@ export default {
         /** Should only the last heartbeat be shown? */
         showOnlyLastHeartbeat: {
             type: Boolean,
+        },
+        /** Should compact mode be used? */
+        compactMode: {
+            type: Boolean,
+            default: false,
         },
     },
     data() {
@@ -308,6 +340,20 @@ export default {
         },
 
         /**
+         * Returns CSS class for compact status dot based on last heartbeat status
+         * @param {number} monitorId Monitor ID
+         * @returns {string} CSS class name
+         */
+        compactStatusClass(monitorId) {
+            const status = this.statusOfLastHeartbeat(monitorId);
+            if (status === 0) { return "dot-down"; }
+            if (status === 1) { return "dot-up"; }
+            if (status === 2) { return "dot-pending"; }
+            if (status === 3) { return "dot-maintenance"; }
+            return "dot-unknown";
+        },
+
+        /**
          * Get unique identifier for a group
          * @param {object} group object
          * @returns {string} group identifier
@@ -408,5 +454,64 @@ export default {
 
 .bg-maintenance {
     background-color: $maintenance;
+}
+
+.compact-monitor-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 8px;
+    padding: 10px;
+}
+
+.compact-item {
+    min-width: 0;
+    padding: 8px 10px 6px;
+    border-radius: 8px;
+    background-color: rgba(0, 0, 0, 0.03);
+    border: 1px solid rgba(0, 0, 0, 0.08);
+
+    .dark & {
+        background-color: rgba(255, 255, 255, 0.04);
+        border-color: $dark-border-color;
+    }
+}
+
+.compact-header {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    margin-bottom: 5px;
+    overflow: hidden;
+}
+
+.compact-name {
+    font-size: 0.78rem;
+    font-weight: 500;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex: 1;
+    min-width: 0;
+    color: inherit;
+    text-decoration: none;
+}
+
+.compact-status-dot {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+
+    &.dot-up          { background-color: $primary; }
+    &.dot-down        { background-color: $danger; }
+    &.dot-pending     { background-color: $warning; }
+    &.dot-maintenance { background-color: $maintenance; }
+    &.dot-unknown     { background-color: $secondary-text; }
+}
+
+.compact-bar {
+    width: 100%;
+    overflow: hidden;
 }
 </style>

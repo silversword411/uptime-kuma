@@ -1,5 +1,5 @@
 <template>
-    <div v-if="loadedTheme" class="container mt-3">
+    <div v-if="loadedTheme" :class="[config.compactMode ? 'container-fluid mt-1' : 'container mt-3']">
         <!-- Sidebar for edit mode -->
         <div v-if="enableEditMode" class="sidebar" data-testid="edit-sidebar">
             <div class="sidebar-body">
@@ -111,6 +111,20 @@
                     />
                     <label class="form-check-label" for="show-only-last-heartbeat">
                         {{ $t("showOnlyLastHeartbeat") }}
+                    </label>
+                </div>
+
+                <!-- Compact Mode -->
+                <div class="my-3 form-check form-switch">
+                    <input
+                        id="compact-mode"
+                        v-model="config.compactMode"
+                        class="form-check-input"
+                        type="checkbox"
+                        data-testid="compact-mode-checkbox"
+                    />
+                    <label class="form-check-label" for="compact-mode">
+                        {{ $t("compactMode") }}
                     </label>
                 </div>
 
@@ -238,41 +252,93 @@
         <!-- Main Status Page -->
         <div :class="{ edit: enableEditMode }" class="main">
             <!-- Logo & Title -->
-            <h1 class="mb-4 title-flex">
-                <!-- Logo -->
-                <span class="logo-wrapper" @click="showImageCropUploadMethod">
-                    <button
-                        v-if="editMode"
-                        type="button"
-                        class="p-0 bg-transparent border-0 small-reset-btn reset-top-left"
-                        @click.stop="resetToDefaultImage"
-                    >
-                        <font-awesome-icon icon="times" class="text-danger" />
-                    </button>
-                    <img :src="logoURL" alt class="logo me-2" :class="logoClass" />
-                    <font-awesome-icon v-if="enableEditMode" class="icon-upload" icon="upload" />
-                </span>
+            <div :class="{ 'compact-header-row': config.compactMode }">
+                <h1 :class="[config.compactMode ? 'mb-1' : 'mb-4', 'title-flex']">
+                    <!-- Logo -->
+                    <span class="logo-wrapper" @click="showImageCropUploadMethod">
+                        <button
+                            v-if="editMode"
+                            type="button"
+                            class="p-0 bg-transparent border-0 small-reset-btn reset-top-left"
+                            @click.stop="resetToDefaultImage"
+                        >
+                            <font-awesome-icon icon="times" class="text-danger" />
+                        </button>
+                        <img :src="logoURL" alt class="logo me-2" :class="logoClass" />
+                        <font-awesome-icon v-if="enableEditMode" class="icon-upload" icon="upload" />
+                    </span>
 
-                <!-- Uploader -->
-                <!--    url="/api/status-page/upload-logo" -->
-                <ImageCropUpload
-                    v-model="showImageCropUpload"
-                    field="img"
-                    :width="128"
-                    :height="128"
-                    :langType="$i18n.locale"
-                    img-format="png"
-                    :noCircle="true"
-                    :noSquare="false"
-                    @crop-success="cropSuccess"
-                />
+                    <!-- Uploader -->
+                    <!--    url="/api/status-page/upload-logo" -->
+                    <ImageCropUpload
+                        v-model="showImageCropUpload"
+                        field="img"
+                        :width="128"
+                        :height="128"
+                        :langType="$i18n.locale"
+                        img-format="png"
+                        :noCircle="true"
+                        :noSquare="false"
+                        @crop-success="cropSuccess"
+                    />
 
-                <!-- Title -->
-                <Editable v-model="config.title" tag="span" :contenteditable="editMode" :noNL="true" />
-            </h1>
+                    <!-- Title -->
+                    <Editable v-model="config.title" tag="span" :contenteditable="editMode" :noNL="true" />
+                </h1>
 
-            <!-- Admin functions -->
-            <div v-if="hasToken" class="mb-2">
+                <!-- Compact inline overall status -->
+                <div v-if="config.compactMode" class="compact-inline-status">
+                    <div v-if="Object.keys($root.publicMonitorList).length === 0 && loadedData">
+                        <font-awesome-icon icon="question-circle" class="ok" />
+                        {{ $t("No Services") }}
+                    </div>
+                    <template v-else>
+                        <div v-if="allUp" class="ok-inline">
+                            <font-awesome-icon icon="check-circle" class="ok" />
+                            {{ $t("All Systems Operational") }}
+                        </div>
+                        <div v-else-if="partialDown">
+                            <font-awesome-icon icon="exclamation-circle" class="warning" />
+                            {{ $t("Partially Degraded Service") }}
+                        </div>
+                        <div v-else-if="allDown">
+                            <font-awesome-icon icon="times-circle" class="danger" />
+                            {{ $t("Degraded Service") }}
+                        </div>
+                        <div v-else-if="isMaintenance">
+                            <font-awesome-icon icon="wrench" class="status-maintenance" />
+                            {{ $t("maintenanceStatus-under-maintenance") }}
+                        </div>
+                    </template>
+                </div>
+
+                <!-- Admin functions (compact: inline with title) -->
+                <div v-if="hasToken && config.compactMode" class="compact-admin-buttons">
+                    <div v-if="!enableEditMode">
+                        <button class="btn btn-primary btn-sm me-2" data-testid="edit-button" @click="edit">
+                            <font-awesome-icon icon="edit" />
+                            {{ $t("Edit Status Page") }}
+                        </button>
+                        <a href="/manage-status-page" class="btn btn-primary btn-sm">
+                            <font-awesome-icon icon="tachometer-alt" />
+                            {{ $t("Go to Dashboard") }}
+                        </a>
+                    </div>
+                    <div v-else>
+                        <button
+                            class="btn btn-primary btn-sm btn-add-group me-2"
+                            data-testid="create-incident-button"
+                            @click="createIncident"
+                        >
+                            <font-awesome-icon icon="bullhorn" />
+                            {{ $t("Create Incident") }}
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Admin functions (normal mode) -->
+            <div v-if="hasToken && !config.compactMode" class="mb-2">
                 <div v-if="!enableEditMode">
                     <button class="btn btn-primary mb-2 me-2" data-testid="edit-button" @click="edit">
                         <font-awesome-icon icon="edit" />
@@ -375,8 +441,8 @@
                 </div>
             </template>
 
-            <!-- Overall Status -->
-            <div class="shadow-box list p-4 overall-status mb-4">
+            <!-- Overall Status (hidden in compact mode, shown inline in header) -->
+            <div v-if="!config.compactMode" class="shadow-box list overall-status p-4 mb-4">
                 <div v-if="Object.keys($root.publicMonitorList).length === 0 && loadedData">
                     <font-awesome-icon icon="question-circle" class="ok" />
                     {{ $t("No Services") }}
@@ -431,7 +497,7 @@
                 v-model="config.description"
                 :contenteditable="editMode"
                 tag="div"
-                class="mb-4 description"
+                class="mb-2 description"
                 data-testid="description-editable"
             />
             <!-- eslint-disable vue/no-v-html-->
@@ -443,7 +509,7 @@
             ></div>
             <!-- eslint-enable vue/no-v-html-->
 
-            <div v-if="editMode" class="mb-4">
+            <div v-if="editMode" class="mb-2">
                 <div>
                     <button class="btn btn-primary btn-add-group me-2" data-testid="add-group-button" @click="addGroup">
                         <font-awesome-icon icon="plus" />
@@ -493,6 +559,7 @@
                     :show-tags="config.showTags"
                     :show-certificate-expiry="config.showCertificateExpiry"
                     :show-only-last-heartbeat="config.showOnlyLastHeartbeat"
+                    :compact-mode="config.compactMode"
                 />
             </div>
 
@@ -546,7 +613,7 @@
                 @incident-updated="loadIncidentHistory"
             />
 
-            <footer class="mt-5 mb-4">
+            <footer class="mt-3 mb-2">
                 <div class="custom-footer-text text-start">
                     <strong v-if="enableEditMode">{{ $t("Custom Footer") }}:</strong>
                 </div>
@@ -1579,6 +1646,38 @@ footer {
     display: flex;
     align-items: center;
     gap: 10px;
+}
+
+.compact-header-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 5px;
+    margin-bottom: 5px;
+}
+
+.compact-inline-status {
+    font-weight: bold;
+    font-size: 22px;
+    flex: 1;
+    text-align: center;
+
+    .ok {
+        color: $primary;
+    }
+
+    .warning {
+        color: $warning;
+    }
+
+    .danger {
+        color: $danger;
+    }
+}
+
+.compact-admin-buttons {
+    flex-shrink: 0;
 }
 
 .logo-wrapper {
